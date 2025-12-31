@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: f1-racing-postgres
+    environment:
+      POSTGRES_DB: f1racing
+      POSTGRES_USER: f1user
+      POSTGRES_PASSWORD: f1password
+      TZ: Asia/Seoul
+      PGTZ: Asia/Seoul
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command: postgres -c timezone=Asia/Seoul
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U f1user -d f1racing"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - f1-racing-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: f1-racing-redis
+    command: redis-server --requirepass redispassword --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - f1-racing-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  f1-racing-network:
+    driver: bridge
