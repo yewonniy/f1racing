@@ -1,6 +1,5 @@
-package com.f1racing.f1_racing.global.client;
+package com.f1racing.f1_racing.global.ergastClient;
 
-import com.f1racing.f1_racing.global.client.dto.ErgastResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -9,6 +8,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import com.f1racing.f1_racing.global.ergastClient.dto.ErgastResponseDto;
+
+// Ergast F1 API 를 이용해서 드라이버 정보를 가져오는 클라이언트
 @Component
 @RequiredArgsConstructor
 public class F1Client {

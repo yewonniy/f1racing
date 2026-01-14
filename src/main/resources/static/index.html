@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 2024 Full Grid Live</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    
+    <style>
+        body { background-color: #121212; color: #e0e0e0; text-align: center; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
+        h1 { margin-bottom: 10px; color: #fff; text-transform: uppercase; letter-spacing: 2px; }
+        
+        #chart-container { 
+            width: 95%; max-width: 1000px; height: 750px; 
+            margin: 0 auto; background: #1e1e1e; border-radius: 15px; 
+            padding: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
+        }
+        
+        .timeline-container {
+            width: 90%; max-width: 1000px; margin: 15px auto;
+            display: flex; align-items: center; gap: 10px;
+            background: #2c2c2c; padding: 10px; border-radius: 10px;
+        }
+        input[type=range] { flex-grow: 1; cursor: pointer; accent-color: #e10600; }
+        .time-label { font-family: monospace; font-size: 1.1em; min-width: 80px; color: #fff; }
+        
+        .control-panel { margin-top: 20px; }
+        select { padding: 8px; font-size: 1em; border-radius: 5px; }
+        #status { font-weight: bold; margin-bottom: 5px; color: #aaa; }
+    </style>
+</head>
+<body>
+
+    <h1>🏎️ F1 FULL GRID <span style="color:#e10600">LIVE</span></h1>
+    
+    <div id="clock-display" style="font-size: 1.5em; font-family: monospace; color: #00ff00; margin: 10px;">--:--:--</div>
+    <div id="status">연결 대기 중...</div>
+
+    <div id="chart-container">
+        <canvas id="trackMap"></canvas>
+    </div>
+
+    <div class="timeline-container">
+        <span id="current-time" class="time-label">00:00:00</span>
+        <input type="range" id="race-timeline" min="0" value="0" step="1" 
+               onmousedown="startDrag()" onmouseup="endDrag(this.value)" 
+               ontouchstart="startDrag()" ontouchend="endDrag(this.value)">
+        <span id="total-time" class="time-label">00:00:00</span>
+    </div>
+
+    <div class="control-panel">
+        <label for="race-select" style="color: white;">🏁 그랑프리 선택: </label>
+        <select id="race-select" onchange="changeRace()">
+            <option value="" disabled selected>로딩 중...</option>
+        </select>
+    </div>
+
+    <script>
+        const DEFAULT_SESSION = 9472; 
+        let driverInfo = {}; 
+        let sessionsData = []; 
+        let sessionStartTime = 0;
+        let isDragging = false; 
+
+        const driverLabelPlugin = {
+            id: 'driverLabel',
+            afterDatasetsDraw(chart, args, options) {
+                const { ctx } = chart;
+                ctx.save();
+                ctx.font = 'bold 11px Arial';
+                ctx.textAlign = 'center'; 
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = 'white'; 
+                chart.data.datasets.forEach((dataset, i) => {
+                    if (dataset.label === 'Track') return;
+                    const meta = chart.getDatasetMeta(i);
+                    if (!meta.hidden && dataset.data.length > 0) {
+                        const element = meta.data[0]; 
+                        if (element) { 
+                            const driverNum = dataset.label;
+                            const name = driverInfo[driverNum] ? driverInfo[driverNum].name : driverNum;
+                            ctx.shadowColor = "black"; ctx.shadowBlur = 4;
+                            ctx.fillText(name, element.x, element.y);
+                        }
+                    }
+                });
+                ctx.restore();
+            }
+        };
+        Chart.register(driverLabelPlugin);
+
+        const ctx = document.getElementById('trackMap').getContext('2d');
+        const carChart = new Chart(ctx, {
+            type: 'scatter',
+            data: { datasets: [{ label: 'Track', data: [], backgroundColor: '#555', pointRadius: 1.5, order: 100 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                scales: { x: { display: false }, y: { display: false } },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        async function initApp() {
+            try {
+                await loadSessions(); 
+                await fetchDriverInfo(DEFAULT_SESSION);
+                // 세션 목록 로드 후 트랙 로딩 호출
+                loadTrackData(DEFAULT_SESSION); 
+                connectWebSocket();
+            } catch (e) { console.error(e); }
+        }
+
+        // 🛠️ [핵심 수정] "시작 후 20분 시점부터 3명 데이터로 그리기"
+        async function loadTrackData(sessionKey) {
+            document.getElementById('status').innerText = "🟡 고품질 트랙 데이터 생성 중...";
+            
+            // 1. 세션의 공식 시작 시간 찾기
+            const session = sessionsData.find(s => s.sessionKey == sessionKey);
+            if (!session || !session.dateStart) {
+                console.warn("시작 시간 정보가 없어 트랙을 그릴 수 없습니다.");
+                return;
+            }
+
+            // 2. 시간 계산: 시작 + 20분 ~ 시작 + 25분 (5분간)
+            const startBase = new Date(session.dateStart).getTime();
+            const trackStartTime = new Date(startBase + 20 * 60 * 1000).toISOString();
+            const trackEndTime = new Date(startBase + 25 * 60 * 1000).toISOString();
+
+            // 3. 상위권 드라이버 3명의 데이터를 병렬로 요청 (데이터 풍부하게 확보)
+            const targetDrivers = [1, 16, 4]; // 베르스타펜, 르클레르, 노리스
+            const promises = targetDrivers.map(driverNum => {
+                const url = `https://api.openf1.org/v1/location?session_key=${sessionKey}&driver_number=${driverNum}&date%3E=${trackStartTime}&date%3C=${trackEndTime}`;
+                return fetch(url).then(res => res.json()).catch(() => []);
+            });
+
+            try {
+                const results = await Promise.all(promises);
+                // 3명 데이터 합치기
+                let allTrackData = results.flat();
+
+                // 4. (0,0) 필터링 및 데이터 과부하 방지 샘플링
+                const cleanData = allTrackData.filter(d => d.x !== 0 && d.y !== 0);
+                // 데이터가 너무 많으면 브라우저가 버벅이니 1/3만 사용 (그래도 충분히 매끄러움)
+                const sampledData = cleanData.filter((_, i) => i % 3 === 0);
+                
+                if (sampledData.length > 0) {
+                    carChart.data.datasets[0].data = sampledData.map(d => ({ x: d.x, y: d.y }));
+                    carChart.update();
+                    document.getElementById('status').innerText = "🟢 고품질 트랙 생성 완료";
+                }
+            } catch (e) {
+                console.error("트랙 생성 실패", e);
+            }
+        }
+
+        function updateDriverPosition(data) {
+            const currentDataTime = new Date(data.date).getTime();
+            document.getElementById('clock-display').innerText = new Date(data.date).toLocaleTimeString();
+            document.getElementById('current-time').innerText = new Date(data.date).toLocaleTimeString();
+
+            if (!isDragging && sessionStartTime > 0) {
+                document.getElementById('race-timeline').value = Math.floor((currentDataTime - sessionStartTime) / 1000);
+            }
+
+            const driverNum = data.driverNumber;
+            let dataset = carChart.data.datasets.find(d => d.label == driverNum);
+
+            if (!dataset) {
+                const info = driverInfo[driverNum] || { color: '#fff', name: driverNum };
+                dataset = {
+                    label: driverNum.toString(),
+                    data: [],
+                    backgroundColor: info.color,
+                    borderColor: 'white',
+                    borderWidth: 1, pointRadius: 6, order: 1
+                };
+                carChart.data.datasets.push(dataset);
+            }
+            dataset.data = [{ x: data.x, y: data.y }];
+            carChart.update('none'); 
+        }
+
+        async function loadSessions() {
+            const res = await fetch('http://localhost:8080/api/race/sessions');
+            sessionsData = await res.json();
+            const select = document.getElementById('race-select');
+            select.innerHTML = ""; 
+            sessionsData.forEach(s => {
+                const option = document.createElement('option');
+                option.value = s.sessionKey;
+                option.text = `2024 ${s.countryName}`;
+                if (s.sessionKey == DEFAULT_SESSION) option.selected = true; 
+                select.appendChild(option);
+            });
+            const def = sessionsData.find(s => s.sessionKey == DEFAULT_SESSION);
+            if(def) setupSlider(def);
+        }
+
+        function setupSlider(session) {
+            const start = new Date(session.dateStart).getTime();
+            const end = new Date(session.dateEnd).getTime();
+            sessionStartTime = start;
+            const slider = document.getElementById('race-timeline');
+            slider.max = Math.floor((end - start) / 1000); slider.value = 0;
+            document.getElementById('total-time').innerText = new Date(end).toLocaleTimeString();
+        }
+
+        async function fetchDriverInfo(key) {
+            const res = await fetch(`https://api.openf1.org/v1/drivers?session_key=${key}`);
+            const data = await res.json();
+            driverInfo = {};
+            data.forEach(d => driverInfo[d.driver_number] = { color: d.team_colour ? `#${d.team_colour}` : '#fff', name: d.name_acronym });
+        }
+
+        function connectWebSocket() {
+            const client = Stomp.over(new SockJS('http://localhost:8080/ws-f1'));
+            client.debug = null;
+            client.connect({}, () => {
+                client.subscribe('/topic/race', (msg) => updateDriverPosition(JSON.parse(msg.body)));
+            });
+        }
+
+        async function changeRace() {
+            const key = document.getElementById('race-select').value;
+            const session = sessionsData.find(s => s.sessionKey == key);
+            
+            document.getElementById('status').innerText = "🔄 로딩 중...";
+            if (session) setupSlider(session);
+            
+            await fetchDriverInfo(key);
+            loadTrackData(key); // 트랙 다시 그리기
+            
+            carChart.data.datasets = [carChart.data.datasets[0]];
+            carChart.update();
+
+            await fetch(`http://localhost:8080/api/race/play/${key}`, { method: 'POST' });
+        }
+
+        function startDrag() { isDragging = true; }
+        async function endDrag(sec) {
+            isDragging = false;
+            const key = document.getElementById('race-select').value;
+            const targetTime = new Date(sessionStartTime + (sec * 1000)).toISOString();
+            await fetch(`http://localhost:8080/api/race/play/${key}?startTime=${targetTime}`, { method: 'POST' });
+        }
+
+        initApp();
+    </script>
+</body>
+</html>
