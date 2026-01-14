@@ -1,4 +1,4 @@
-package com.f1racing.f1_racing.domain.pastGrandprix.entity;
+package com.f1racing.f1_racing.domain.pastGrandprix.entity.year2024;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;

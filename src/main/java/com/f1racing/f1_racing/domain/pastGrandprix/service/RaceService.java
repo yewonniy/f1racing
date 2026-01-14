@@ -20,10 +20,14 @@ import com.f1racing.f1_racing.domain.pastGrandprix.dto.F1LocationDto;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.RaceDataDto;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.SessionDto;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.SpeedInfoDto;
-import com.f1racing.f1_racing.domain.pastGrandprix.entity.RaceData;
-import com.f1racing.f1_racing.domain.pastGrandprix.entity.RaceSession;
-import com.f1racing.f1_racing.domain.pastGrandprix.repository.RaceDataRepository;
-import com.f1racing.f1_racing.domain.pastGrandprix.repository.RaceSessionRepository;
+import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2025.RaceData25;
+import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2024.RaceData;
+import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2024.RaceSession;
+import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2025.RaceSession25;
+import com.f1racing.f1_racing.domain.pastGrandprix.repository.year2024.RaceDataRepository;
+import com.f1racing.f1_racing.domain.pastGrandprix.repository.year2024.RaceSessionRepository;
+import com.f1racing.f1_racing.domain.pastGrandprix.repository.year2025.RaceData25Repository;
+import com.f1racing.f1_racing.domain.pastGrandprix.repository.year2025.RaceSession25Repository;
 
 @Slf4j
 @Service
@@ -33,6 +37,8 @@ public class RaceService {
     private final SimpMessagingTemplate messagingTemplate;
     private final RaceSessionRepository raceSessionRepository;
     private final RaceDataRepository raceDataRepository;
+    private final RaceData25Repository raceData25Repository;
+    private final RaceSession25Repository raceSession25Repository;
     
     private ThreadPoolTaskExecutor taskExecutor; 
     private Future<?> currentPlayTask;
@@ -48,11 +54,11 @@ public class RaceService {
     }
 
     private void crawlingAllRaces() {
-        log.info("🌍 2024년 모든 그랑프리 정보 조회 시작...");
+        log.info("🌍 2025년 모든 그랑프리 정보 조회 시작...");
         RestTemplate rt = createRestTemplate();
 
         try {
-            String sessionsUrl = "https://api.openf1.org/v1/sessions?year=2024&session_name=Race";
+            String sessionsUrl = "https://api.openf1.org/v1/sessions?year=2025&session_name=Race";
             SessionDto[] sessions = rt.getForObject(sessionsUrl, SessionDto[].class);
 
             if (sessions == null) return;
@@ -60,9 +66,9 @@ public class RaceService {
 
             for (SessionDto session : sessions) {
 
-                if (raceDataRepository.existsBySessionKey(session.getSessionKey())) {
+                if (raceData25Repository.existsBySessionKey(session.getSessionKey())) {
                     log.info("⏭️ [{}] 데이터는 이미 DB에 있습니다.", session.getCountryName());
-                    if (!raceSessionRepository.existsById(session.getSessionKey())) {
+                    if (!raceSession25Repository.existsById(session.getSessionKey())) {
                          saveSessionInfo(session);
                     }
                     continue;
@@ -92,13 +98,13 @@ public class RaceService {
 
     private void saveSessionInfo(SessionDto dto) {
         // [수정 2] Entity는 String을 원하므로 변환 없이 그대로 넣음!
-        RaceSession session = RaceSession.builder()
+        RaceSession25 session = RaceSession25.builder()
                 .sessionKey(dto.getSessionKey())
                 .countryName(dto.getCountryName())
                 .circuitShortName(dto.getCircuitShortName())
                 .dateStart(dto.getDateStart()) // String 그대로!
                 .build();
-        raceSessionRepository.save(session);
+            raceSession25Repository.save(session);
     }
 
     private void crawlRaceData(int sessionKey, LocalDateTime officialStartTime) {
@@ -113,7 +119,7 @@ public class RaceService {
                         List<RaceDataDto> dataList = loadDataForDriver(sessionKey, driverNum, officialStartTime);
                         
                         if (!dataList.isEmpty()) {
-                            List<RaceData> entities = dataList.stream().map(d -> RaceData.builder()
+                            List<RaceData25> entities = dataList.stream().map(d -> RaceData25.builder()
                                     .sessionKey(sessionKey)
                                     .driverNumber(d.getDriverNumber())
                                     .timestamp(d.getDate())
@@ -122,7 +128,7 @@ public class RaceService {
                                     .speed(d.getSpeed())
                                     .build()).collect(Collectors.toList());
 
-                            raceDataRepository.saveAll(entities);
+                            raceData25Repository.saveAll(entities);
                             log.info("💾 [Session {}] Driver {} 저장 ({} 건)", sessionKey, driverNum, entities.size());
                         }
                     } catch (Exception e) {
@@ -208,8 +214,8 @@ public class RaceService {
         catch (Exception e) { return LocalDateTime.parse(timeStr); }
     }
 
-    public List<RaceSession> getAllSessions() {
-        return raceSessionRepository.findAll();
+    public List<RaceSession25> getAllSessions() {
+        return raceSession25Repository.findAll();
     }
 
     public void playRaceSession(int sessionKey, String startTimeStr) {
@@ -220,13 +226,13 @@ public class RaceService {
         currentPlayTask = taskExecutor.submit(() -> {
             try {
                 log.info("📂 DB에서 세션 {} 데이터 로딩 중...", sessionKey);
-                RaceSession session = raceSessionRepository.findById(sessionKey).orElse(null);
+                RaceSession25 session = raceSession25Repository.findById(sessionKey).orElse(null);
                 if (session == null) {
                     log.error("세션 정보 없음: {}", sessionKey);
                     return;
                 }
 
-                List<RaceData> raceData = raceDataRepository.findBySessionKeyOrderByTimestampAsc(sessionKey);
+                List<RaceData25> raceData = raceData25Repository.findBySessionKeyOrderByTimestampAsc(sessionKey);
                 
                 if (raceData.isEmpty()) {
                     log.warn("⚠️ 데이터가 없습니다.");
@@ -243,13 +249,13 @@ public class RaceService {
                     targetTime = parseTime(session.getDateStart());
                 }
 
-                List<RaceData> playList = raceData.stream()
+                List<RaceData25> playList = raceData.stream()
                         .filter(d -> !d.getTimestamp().isBefore(targetTime))
                         .toList();
 
                 log.info("⏩ {} 부터 재생 시작! (남은 프레임: {})", targetTime, playList.size());
 
-                for (RaceData entity : playList) {
+                for (RaceData25 entity : playList) {
                     if (Thread.currentThread().isInterrupted()) break; 
 
                     RaceDataDto data = RaceDataDto.builder()

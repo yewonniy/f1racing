@@ -6,7 +6,7 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.f1racing.f1_racing.domain.pastGrandprix.entity.RaceSession;
+import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2024.RaceSession;
 import com.f1racing.f1_racing.domain.pastGrandprix.service.RaceService;
 
 @RestController
