@@ -1,4 +1,4 @@
-package com.f1racing.f1_racing.global.client.dto;
+package com.f1racing.f1_racing.global.ergastClient.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;

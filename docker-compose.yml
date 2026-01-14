@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: f1racing
       POSTGRES_USER: f1user
-      POSTGRES_PASSWORD: f1password
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       TZ: Asia/Seoul
       PGTZ: Asia/Seoul
     ports:
@@ -16,7 +16,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     command: postgres -c timezone=Asia/Seoul
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U f1user -d f1racing"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,7 +26,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: f1-racing-redis
-    command: redis-server --requirepass redispassword --appendonly yes
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
     ports:
       - "6379:6379"
     volumes:

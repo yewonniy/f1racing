@@ -5,8 +5,9 @@ import com.f1racing.f1_racing.domain.driver.dto.DriverListResponseDTO;
 import com.f1racing.f1_racing.domain.driver.dto.DriverResponseDTO;
 import com.f1racing.f1_racing.domain.driver.entity.Driver;
 import com.f1racing.f1_racing.domain.driver.repository.DriverRepository;
-import com.f1racing.f1_racing.global.client.F1Client;
-import com.f1racing.f1_racing.global.client.dto.ErgastResponseDto;
+import com.f1racing.f1_racing.global.ergastClient.F1Client;
+import com.f1racing.f1_racing.global.ergastClient.dto.ErgastResponseDto;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;

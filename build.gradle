@@ -43,6 +43,9 @@ dependencies {
 
     testImplementation 'org.springdoc:springdoc-openapi-starter-webmvc-api:2.7.0'
 
+	// 웹소켓
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
 }
 
 tasks.named('test') {
