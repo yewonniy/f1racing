@@ -1,8 +1,8 @@
-package com.f1racing.f1_racing.domain.pastGrandprix.repository;
+package com.f1racing.f1_racing.domain.pastGrandprix.repository.year2024;
 
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
-import com.f1racing.f1_racing.domain.pastGrandprix.entity.RaceData;
+import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2024.RaceData;
 
 public interface RaceDataRepository extends JpaRepository<RaceData, Long> {
 
