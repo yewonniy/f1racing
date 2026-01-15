@@ -29,11 +29,11 @@ import com.f1racing.f1_racing.domain.pastGrandprix.dto.SpeedInfoDto;
 import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2025.LapData25;
 import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2025.RaceData25;
 import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2024.LapData24;
-import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2024.RaceData;
-import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2024.RaceSession;
+import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2024.RaceData24;
+import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2024.RaceSession24;
 import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2025.RaceSession25;
 import com.f1racing.f1_racing.domain.pastGrandprix.repository.year2024.LapData24Repository;
-import com.f1racing.f1_racing.domain.pastGrandprix.repository.year2024.RaceDataRepository;
+import com.f1racing.f1_racing.domain.pastGrandprix.repository.year2024.RaceData24Repository;
 import com.f1racing.f1_racing.domain.pastGrandprix.repository.year2024.RaceSessionRepository;
 import com.f1racing.f1_racing.domain.pastGrandprix.repository.year2025.LapData25Repository;
 import com.f1racing.f1_racing.domain.pastGrandprix.repository.year2025.RaceData25Repository;
@@ -45,8 +45,8 @@ import com.f1racing.f1_racing.domain.pastGrandprix.repository.year2025.RaceSessi
 public class RaceService {
 
     private final SimpMessagingTemplate messagingTemplate;
-    // private final RaceSessionRepository raceSessionRepository;
-    // private final RaceDataRepository raceDataRepository;
+    private final RaceSessionRepository raceSession24Repository;
+    private final RaceData24Repository raceData24Repository;
     private final RaceData25Repository raceData25Repository;
     private final RaceSession25Repository raceSession25Repository;
     // private final LapData25Repository lapData25Repository;
@@ -371,8 +371,12 @@ public class RaceService {
         catch (Exception e) { return LocalDateTime.parse(timeStr); }
     }
 
-    public List<RaceSession25> getAllSessions() {
+    public List<RaceSession25> getAllSessionsIn2025() {
         return raceSession25Repository.findAll();
+    }
+
+    public List<RaceSession24> getAllSessionsIn2024() {
+        return raceSession24Repository.findAll();
     }
 
     public void playRaceSession(int sessionKey, String startTimeStr) {

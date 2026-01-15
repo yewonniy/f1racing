@@ -12,8 +12,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 // 조회 속도를 위해 인덱스 걸기 (세션키 + 시간 순서)
-@Table(indexes = @Index(name = "idx_session_time", columnList = "sessionKey, timestamp"))
-public class RaceData {
+@Table(name = "race_data_24", indexes = @Index(name = "idx_session_time", columnList = "sessionKey, timestamp"))
+public class RaceData24 {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // 데이터가 수백만 개라 Long 타입 PK 필요

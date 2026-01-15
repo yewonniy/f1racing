@@ -27,7 +27,7 @@ spring:
       host: localhost
       port: 6379
       password: ${REDIS_PASSWORD}
-      timeout: 2000ms
+      timeout: 30000ms
       lettuce:
         pool:
           max-active: 8
