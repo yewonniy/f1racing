@@ -7,14 +7,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "drivers")
+@Table(name = "driver_24")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Driver {
-
-	@Id
+public class Driver24 {
+    @Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
@@ -61,4 +60,3 @@ public class Driver {
 		this.team = team;
 	}
 }
-

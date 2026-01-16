@@ -16,7 +16,7 @@ import com.f1racing.f1_racing.global.ergastClient.dto.ErgastResponseDto;
 public class F1Client {
 
     private final RestTemplate restTemplate = new RestTemplate(); // chrome처럼 행동! API_URL 주소로 가서 GET 요청을 함!
-    private final String API_URL = "https://api.jolpi.ca/ergast/f1/current/driverStandings.json";
+    private final String API_URL = "https://api.jolpi.ca/ergast/f1/2025/driverStandings.json";
 
     public ErgastResponseDto getDriverStandings() {
  

@@ -3,8 +3,10 @@ package com.f1racing.f1_racing.domain.driver.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.f1racing.f1_racing.domain.driver.dto.DriverListResponseDTO;
 import com.f1racing.f1_racing.domain.driver.dto.DriverResponseDTO;
-import com.f1racing.f1_racing.domain.driver.entity.Driver;
-import com.f1racing.f1_racing.domain.driver.repository.DriverRepository;
+import com.f1racing.f1_racing.domain.driver.entity.Driver24;
+import com.f1racing.f1_racing.domain.driver.entity.Driver25;
+import com.f1racing.f1_racing.domain.driver.repository.DriverRepository24;
+import com.f1racing.f1_racing.domain.driver.repository.DriverRepository25;
 import com.f1racing.f1_racing.global.ergastClient.F1Client;
 import com.f1racing.f1_racing.global.ergastClient.dto.ErgastResponseDto;
 
@@ -28,10 +30,12 @@ public class DriverService {
 	private static final String REDIS_KEY_DRIVER_BY_ID = "driver:id:";
 	private static final Duration CACHE_TTL = Duration.ofHours(1); // TTL 1시간 = 1시간 뒤에 해당 캐시 삭제
 
-	private final DriverRepository driverRepository;
+	private final DriverRepository25 driverRepository;
 	private final RedisTemplate<String, String> redisTemplate; // <key, value>
 	private final ObjectMapper objectMapper; // 자바 객체 <-> JSON 변환 담당 (Redis는 자바 객체 못알아들음. JSON으로 변환해야함)
 	private final F1Client f1Client;
+
+	// private final DriverRepository24 driverRepository;
 	/**
 	 * 모든 드라이버 조회 (순위 순)
 	 * Look-aside 캐싱 패턴 적용: Redis → DB → Redis 저장
@@ -53,7 +57,7 @@ public class DriverService {
 
 		// 2. Redis에 없으면 DB에서 조회
 		log.info("Cache miss: DB에서 모든 드라이버 데이터 조회 시도");
-		List<Driver> drivers = driverRepository.findAllOrderByPosition(); // db에서 찾아옴.
+		List<Driver25> drivers = driverRepository.findAllOrderByPosition(); // db에서 찾아옴.
 		// entity -> dto 변환
 		List<DriverResponseDTO> driverDTOs 
 			= drivers.stream() // stream = 드라이버 20명 한줄로 세움
@@ -99,7 +103,7 @@ public class DriverService {
 
 		// 2. Redis에 없으면 DB에서 조회
 		log.info("Cache miss: DB에서 드라이버 {} 반환", id);
-		Optional<Driver> driver = driverRepository.findById(id);
+		Optional<Driver25> driver = driverRepository.findById(id);
 		if (driver.isEmpty()) {
 			return Optional.empty();
 		}
@@ -123,7 +127,7 @@ public class DriverService {
 	 */
 	@Transactional(readOnly = true)
 	public Optional<DriverResponseDTO> getDriverByDriverId(String driverId) {
-		Optional<Driver> driver = driverRepository.findByDriverId(driverId);
+		Optional<Driver25> driver = driverRepository.findByDriverId(driverId);
 		return driver.map(DriverResponseDTO::from);
 	}
 
@@ -132,7 +136,7 @@ public class DriverService {
 	 */
 	@Transactional(readOnly = true)
 	public DriverListResponseDTO getDriversByTeam(String team) {
-		List<Driver> drivers = driverRepository.findByTeam(team);
+		List<Driver25> drivers = driverRepository.findByTeam(team);
 		List<DriverResponseDTO> driverDTOs = drivers.stream()
 			.map(DriverResponseDTO::from)
 			.collect(Collectors.toList());
@@ -189,7 +193,7 @@ public class DriverService {
             int driverNum = parseIntegerOrDefault(driverInfo.getPermanentNumber(), 0); 
 
             // 빌더 패턴으로 엔티티 생성
-            Driver driverEntity = Driver.builder()
+            Driver25 driverEntity = Driver25.builder()
                 .driverId(driverInfo.getDriverId())       // "max_verstappen"
                 .firstName(driverInfo.getGivenName())     // "Max"
                 .lastName(driverInfo.getFamilyName())     // "Verstappen"
@@ -202,7 +206,8 @@ public class DriverService {
                 .permanentNumber(driverInfo.getPermanentNumber()) // "33" (String 저장)
 				.wins(wins)
                 .build();
-
+			
+			log.info("드라이버 : {} ",driverEntity);
             // 저장
             driverRepository.save(driverEntity);
         }

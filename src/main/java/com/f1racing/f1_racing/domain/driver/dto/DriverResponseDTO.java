@@ -1,6 +1,7 @@
 package com.f1racing.f1_racing.domain.driver.dto;
 
-import com.f1racing.f1_racing.domain.driver.entity.Driver;
+import com.f1racing.f1_racing.domain.driver.entity.Driver24;
+import com.f1racing.f1_racing.domain.driver.entity.Driver25;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,7 +27,7 @@ public class DriverResponseDTO {
 	private String permanentNumber;
     private Integer wins;
 
-	public static DriverResponseDTO from(Driver driver) {
+	public static DriverResponseDTO from(Driver25 driver) {
 		return DriverResponseDTO.builder()
 			.id(driver.getId())
 			.driverId(driver.getDriverId())

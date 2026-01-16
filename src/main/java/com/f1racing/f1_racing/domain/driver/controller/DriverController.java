@@ -24,14 +24,14 @@ public class DriverController {
 
 	private final DriverService driverService;
 
-	@Operation(summary = "모든 드라이버 조회", description = "순위 순으로 정렬된 모든 드라이버 정보를 조회합니다. (Redis 캐싱 적용)")
+	@Operation(summary = "모든 드라이버 조회", description = "순위 순으로 정렬된 모든 드라이버 정보를 조회합니다.")
 	@GetMapping
 	public ResponseEntity<GlobalResponse<DriverListResponseDTO>> getAllDrivers() {
 		DriverListResponseDTO response = driverService.getAllDrivers();
 		return ResponseEntity.ok(GlobalResponse.success(response));
 	}
 
-	@Operation(summary = "드라이버 ID로 조회", description = "드라이버 ID로 특정 드라이버 정보를 조회합니다. (Redis 캐싱 적용)")
+	@Operation(summary = "드라이버 ID로 조회", description = "드라이버 ID로 특정 드라이버 정보를 조회합니다.")
 	@GetMapping("/{id}")
 	public ResponseEntity<GlobalResponse<DriverResponseDTO>> getDriverById(@PathVariable Long id) {
 		Optional<DriverResponseDTO> driver = driverService.getDriverById(id);
@@ -68,6 +68,7 @@ public class DriverController {
 	 * 외부 API 호출해서 드라이버 정보 얻어오기
 	 * @return
 	 */
+	@Operation(summary = "호출하지 마삼")
 	@PostMapping("/sync")
     public GlobalResponse<String> syncDrivers() {
         driverService.fetchAndSaveAllDriversInfo();
