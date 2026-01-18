@@ -105,25 +105,27 @@ public class RedisCacheService {
     }
 
     public List<RaceDataRedisDto> getRaceDataByTimeRange(int sessionKey, int year, double startTs, double endTs) {
-        String key = "session:" + sessionKey + ":data"; // Redis에서 조회할 key값
+
+        /* String key = "session:" + sessionKey + ":data"; // Redis에서 조회할 key값
 
         // 1-1. Redis에 있으면 바로 반환 (Cache hit)
         if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
             Set<Object> rangeData = redisTemplate.opsForZSet().rangeByScore(key, startTs, endTs);
+            log.info("🍏🍏🍏🍏캐시 hit!!!!🍏🍏🍏🍏");
             return (rangeData == null) ? List.of() : 
                    rangeData.stream().map(obj -> (RaceDataRedisDto) obj).collect(Collectors.toList());
         }
 
         // 1-2. Redis에 없으면? (Cache miss)
-        log.info("Cache Miss! (Session: {}) -> 백그라운드 적재 시작 & DB 즉시 조회", sessionKey);
+        log.info("💧💧Cache Miss!ㅠㅠ💧💧 (Session: {}) -> 백그라운드 적재 시작 & DB 즉시 조회", sessionKey);
 
         // A) 백그라운드에서 전체 캐싱 시작 (사용자는 안 기다림)
-        cacheRaceDataAsync(sessionKey, year);
+        cacheRaceDataAsync(sessionKey, year);  */
 
         // B) 당장 필요한 1초치만 DB에서 조회해서 바로 리턴 (0.1초 컷)
         LocalDateTime start = LocalDateTime.ofInstant(Instant.ofEpochMilli((long) startTs), ZoneId.of("UTC"));
         LocalDateTime end = LocalDateTime.ofInstant(Instant.ofEpochMilli((long) endTs), ZoneId.of("UTC"));
-
+        
         if (year == 2024) {
              return raceData24Repository.findDataByTimeRange(sessionKey, start, end);
         } else {

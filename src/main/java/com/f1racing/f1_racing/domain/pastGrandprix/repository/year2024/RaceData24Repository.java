@@ -25,7 +25,7 @@ public interface RaceData24Repository extends JpaRepository<RaceData24, Long> {
 
         @Query("SELECT new com.f1racing.f1_racing.redis.dto.RaceDataRedisDto(" +
            "r.driverNumber, r.x, r.y, r.speed, r.timestamp) " +
-           "FROM RaceData25 r WHERE r.sessionKey = :sessionKey " +
+           "FROM RaceData24 r WHERE r.sessionKey = :sessionKey " +
            "AND r.timestamp >= :startTs AND r.timestamp < :endTs")
         List<RaceDataRedisDto> findDataByTimeRange(
                 @Param("sessionKey") Integer sessionKey,
@@ -35,6 +35,6 @@ public interface RaceData24Repository extends JpaRepository<RaceData24, Long> {
         // 2. [메모리 보호용] 데이터를 페이징(Page) 처리해서 가져오기
         @Query("SELECT new com.f1racing.f1_racing.redis.dto.RaceDataRedisDto(" +
                 "r.driverNumber, r.x, r.y, r.speed, r.timestamp) " +
-                "FROM RaceData25 r WHERE r.sessionKey = :sessionKey")
+                "FROM RaceData24 r WHERE r.sessionKey = :sessionKey")
         Page<RaceDataRedisDto> findAllBySessionKeyPaged(@Param("sessionKey") Integer sessionKey, Pageable pageable);
 }

@@ -7,6 +7,10 @@ spring:
     username: f1user
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 100  # 기본값 10 -> 100 (또는 그 이상)으로 증설
+      minimum-idle: 10        # 최소 유지 연결 수
+      connection-timeout: 30000 # 대기 시간 (30초 유지)
 
   jpa:
     hibernate:
@@ -30,12 +34,18 @@ spring:
       timeout: 30000ms
       lettuce:
         pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
+          max-active: 1000
+          max-idle: 100
+          min-idle: 50
+          max-wait: 10000ms
 
 server:
   port: 8080
+  tomcat:
+    threads: # 스레드 = 일꾼의 수
+      max: 1000      # 기본 200 -> 1000명으로 증원!
+      min-spare: 100 # 놀고 있는 일꾼도 100명 유지
+    accept-count: 2000 # 대기열 사이즈도 넉넉하게
 
 logging:
   level:
