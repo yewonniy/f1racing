@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import java.security.Principal;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
@@ -52,17 +53,21 @@ public class RaceController {
 
 
     /**
-     * 📩 클라이언트 요청: /app/race/data (/app을 붙이면 websocket 통신))
+     * 📩 클라이언트 요청: /app/race/data (/app을 붙이면 websocket 통신)
      * { "year": 2024, "sessionKey": 9480, "startTime": 1709392000000 }
+     * 웹소켓 구독할 때 경로 뒤에 고유 ID(UUID) 하나만 붙여줘.
+     * 구독(SUB): /topic/race/9480/my-unique-id-123
+     * 요청(PUB): /app/race/data 보낼 때 JSON 안에 clientId: "my-unique-id-123" 이거 꼭 넣어줘., 그래야 다른 유저 데이터랑 안 섞이고 니꺼만 받을 수 있어."
      * @param request
      * @param principal
      * @return
      */
-    @Operation(summary = "sessionKey와 연도를 전달하면, 해당 그랑프리의 모든 RaceData 반환 <조회용 API>")
-	@GetMapping("/race/data") 
-	public ResponseEntity<List<IntegratedRaceDataDto>> getRaceData(
-		RaceDataRequestDto request,
-        Principal principal
+    @Operation(summary = "<조회용 API> 그랑프리 다시 보기 기능", 
+        description = "year, sessionKey, startTime, uuid를 보내주면 -> 1분치 데이터를 전송. 프론트에서 버퍼가 다 떨어진 걸 확인했거나 or 사용자가 타임슬라이더를 움직이면 다시 요청할 것")
+	@MessageMapping("/race/data") 
+	public void handleRaceDataRequest(
+		RaceDataRequestDto request
+        // Principal principal
 	) {
 		// 1. 서비스 호출 (DB에서 60초 치 데이터 가져오기)
         List<IntegratedRaceDataDto> dataChunk = playerService.getRaceData(
@@ -71,20 +76,24 @@ public class RaceController {
             request.getStartTime()
         );
 
-        // 2. 데이터 전송 (경로: /topic/race/{sessionKey})
-        // 주의: 이 경로는 '해당 세션을 보고 있는 모든 유저'에게 갑니다.
-        // 만약 '요청한 나한테만' 오게 하려면 @SendToUser를 쓰거나 경로에 userId를 포함해야 합니다.
-        // 여기서는 간단하게 세션별 토픽으로 구현했습니다.
+        // 2. 데이터 전송 (요청한 사람의 '전용 채널'로 쏴주기)
+        // 변경 전: /topic/race/9480 (모두가 다 받음 ❌)
+        // 변경 후: /topic/race/9480/user-1234 (요청한 나만 받음 ✅)
         messagingTemplate.convertAndSend(
-                "/topic/race/" + request.getSessionKey(), 
-                dataChunk
+            "/topic/race/" + request.getSessionKey() + "/" + request.getClientId(), 
+            dataChunk
         );
-        
-        // 💡 팁: 응답 데이터에 '다음 요청을 위한 정보(nextStartTime)'를 같이 주면 프론트가 편합니다.
-        // 예: { "data": [...], "nextStartTime": 1709392060000 }
 	}
+    /**
+     * 프론트한테 설명할때:
+     * "우리는 라이브가 아니라 다시보기라서 유저마다 보는 시간이 다 달라. 그래서 철수가 요청한 데이터를 영희가 받으면 안 돼.
+     * 너네가 접속할 때 랜덤한 UUID(clientId) 하나 생성해줘.
+     * 받을 때(Sub): /topic/race/{sessionKey}/{clientId} 로 구독해.
+     * 요청할 때(Pub): clientId 필드에 그 UUID를 꼭 담아서 보내줘.
+     * 그러면 내가 그 ID를 보고 너한테만 데이터를 쏴줄게!"
+     */
 
-    /** 
+    /** ----------------------------------------------------------------------------
 	 * 프론트엔드가 타임 슬라이더를 움직일 때마다 호출할 <조회용 API>
 	 */
     /* 

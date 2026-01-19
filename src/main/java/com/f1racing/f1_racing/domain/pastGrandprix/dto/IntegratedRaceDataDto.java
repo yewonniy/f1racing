@@ -1,4 +1,4 @@
-package com.f1racing.f1_racing.redis.dto;
+package com.f1racing.f1_racing.domain.pastGrandprix.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

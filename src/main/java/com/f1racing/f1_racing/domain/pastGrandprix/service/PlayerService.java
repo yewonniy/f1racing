@@ -1,5 +1,8 @@
 package com.f1racing.f1_racing.domain.pastGrandprix.service;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Future;
@@ -20,7 +23,7 @@ public class PlayerService {
     private final RaceData25Repository raceData25Repository;
     // 📺 스트리밍 청크 사이즈 (60초)
     // 유튜브/넷플릭스는 보통 4~10초 청크를 쓰지만, F1 데이터는 텍스트라 60초도 거뜬합니다.
-    private static final long CHUNK_SIZE_MS = 60 * 1000L; 
+    private static final long CHUNK_SIZE_SECONDS = 60;
     private Future<?> currentPlayTask;
 
      /**
@@ -31,16 +34,19 @@ public class PlayerService {
      * @return
      */
     @Transactional(readOnly = true)
-    public List<IntegratedRaceDataDto> getRaceData(int year, int sessionKey, Long startTime) {
-        
+    public List<IntegratedRaceDataDto> getRaceData(int year, int sessionKey, Long startTimeLong) {
+        LocalDateTime startTs = LocalDateTime.ofInstant(
+            Instant.ofEpochMilli(startTimeLong), 
+            ZoneId.of("UTC")
+        );
         // 1. 끝나는 시간 계산 (요청 시간 + 60초)
-        Long endTime = startTime + CHUNK_SIZE_MS;
+        LocalDateTime endTs = startTs.plusSeconds(CHUNK_SIZE_SECONDS);
 
         // 2. 연도별 분기 처리 & Pure DB 조회
         if (year == 2024) {
-            return raceData24Repository.findDataByTimeRange(sessionKey, startTime, endTime);
+            return raceData24Repository.findDataByTimeRange(sessionKey, startTs, endTs);
         } else if (year == 2025) {
-            return raceData25Repository.findDataByTimeRange(sessionKey, startTime, endTime);
+            return raceData25Repository.findDataByTimeRange(sessionKey, startTs, endTs);
         }
 
         return Collections.emptyList();
