@@ -16,10 +16,16 @@ import com.f1racing.f1_racing.global.ergastClient.dto.ErgastResponseDto;
 public class F1Client {
 
     private final RestTemplate restTemplate = new RestTemplate(); // chrome처럼 행동! API_URL 주소로 가서 GET 요청을 함!
-    private final String API_URL = "https://api.jolpi.ca/ergast/f1/2025/driverStandings.json";
+    private final String API_URL_2025 = "https://api.jolpi.ca/ergast/f1/2025/driverStandings.json";
+    private final String API_URL_2024 = "https://api.jolpi.ca/ergast/f1/2024/driverStandings.json";
 
-    public ErgastResponseDto getDriverStandings() {
- 
+    public ErgastResponseDto getDriverStandings(int year) {
+        String API_URL = API_URL_2025;
+
+        if (year == 2024) {
+            API_URL = API_URL_2024;
+        }
+
         // 헤더 만들기 (나 모질라(chrome) 브라우저야!)
         HttpHeaders headers = new HttpHeaders();
         headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");

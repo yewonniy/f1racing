@@ -44,5 +44,23 @@ public class DriverResponseDTO {
             .wins(driver.getWins())
 			.build();
 	}
+
+	public static DriverResponseDTO from(Driver24 driver) {
+		return DriverResponseDTO.builder()
+			.id(driver.getId())
+			.driverId(driver.getDriverId())
+			.firstName(driver.getFirstName())
+			.lastName(driver.getLastName())
+			.fullName(driver.getFirstName() + " " + driver.getLastName())
+			.nationality(driver.getNationality())
+			.team(driver.getTeam())
+			.driverNumber(driver.getDriverNumber())
+			.position(driver.getPosition())
+			.points(driver.getPoints())
+			.dateOfBirth(driver.getDateOfBirth())
+			.permanentNumber(driver.getPermanentNumber())
+            .wins(driver.getWins())
+			.build();
+	}
 }
 
