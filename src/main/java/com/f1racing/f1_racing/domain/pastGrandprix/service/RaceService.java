@@ -12,18 +12,17 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.cglib.core.Local;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import com.f1racing.f1_racing.domain.driver.entity.Driver24;
-// import com.f1racing.f1_racing.domain.driver.entity.Driver25;
 import com.f1racing.f1_racing.domain.driver.repository.DriverRepository24;
 import com.f1racing.f1_racing.domain.driver.repository.DriverRepository25;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.F1LocationDto;
-import com.f1racing.f1_racing.domain.pastGrandprix.dto.RaceDataDto;
+import com.f1racing.f1_racing.domain.pastGrandprix.dto.IntegratedRaceDataDto;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.SessionDto;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.SpeedInfoDto;
 import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2025.LapData25;
@@ -55,7 +54,6 @@ public class RaceService {
     private final DriverRepository24 driverRepository24;
     
     private ThreadPoolTaskExecutor taskExecutor; 
-    private Future<?> currentPlayTask;
 
     // @PostConstruct
     public void initExecutor() {
@@ -264,6 +262,12 @@ public class RaceService {
             raceSession25Repository.save(session);
     }
 
+    /**
+     * api 서버에 요청 보내서 sessionkey 그랑프리 데이터 크롤링
+     * 2025 데이터임.
+     * @param sessionKey
+     * @param officialStartTime
+     */
     private void crawlRaceData(int sessionKey, LocalDateTime officialStartTime) {
         log.info("🔎 세션 {} ({} 이후 데이터) 드라이버 목록 조회...", sessionKey, officialStartTime);
         List<Integer> driverNumbers = fetchDriverNumbers(sessionKey);
@@ -272,18 +276,20 @@ public class RaceService {
         List<CompletableFuture<Void>> futures = driverNumbers.stream()
                 .map(driverNum -> CompletableFuture.runAsync(() -> {
                     try {
-                        Thread.sleep(700); 
-                        List<RaceDataDto> dataList = loadDataForDriver(sessionKey, driverNum, officialStartTime);
+                        Thread.sleep(700);
+                        List<IntegratedRaceDataDto> dataList = loadDataForDriver(sessionKey, driverNum, officialStartTime);
                         
                         if (!dataList.isEmpty()) {
-                            List<RaceData25> entities = dataList.stream().map(d -> RaceData25.builder()
-                                    .sessionKey(sessionKey)
-                                    .driverNumber(d.getDriverNumber())
-                                    .timestamp(d.getDate())
-                                    .x(d.getX())
-                                    .y(d.getY())
-                                    .speed(d.getSpeed())
-                                    .build()).collect(Collectors.toList());
+                            List<RaceData25> entities = dataList.stream()
+                                    .map(d -> RaceData25.builder()
+                                            .sessionKey(sessionKey)
+                                            .driverNumber(d.getDriverNumber())
+                                            .timestamp(d.getTimestamp())
+                                            .x(d.getX())
+                                            .y(d.getY())
+                                            .speed(d.getSpeed())
+                                            .build())
+                                    .collect(Collectors.toList());
 
                             raceData25Repository.saveAll(entities);
                             log.info("💾 [Session {}] Driver {} 저장 ({} 건)", sessionKey, driverNum, entities.size());
@@ -298,9 +304,9 @@ public class RaceService {
         executor.shutdown();
     }
     
-    private List<RaceDataDto> loadDataForDriver(int sessionKey, int driverNumber, LocalDateTime startTime) {
+    private List<IntegratedRaceDataDto> loadDataForDriver(int sessionKey, int driverNumber, LocalDateTime startTime) {
         RestTemplate restTemplate = createRestTemplate();
-        List<RaceDataDto> result = new ArrayList<>();
+        List<IntegratedRaceDataDto> result = new ArrayList<>();
 
         try {
             String timeStr = startTime.toString() + "Z";
@@ -326,8 +332,8 @@ public class RaceService {
         return result;
     }
 
-    private List<RaceDataDto> mergeData(F1LocationDto[] locs, SpeedInfoDto[] speeds) {
-        List<RaceDataDto> merged = new ArrayList<>();
+    private List<IntegratedRaceDataDto> mergeData(F1LocationDto[] locs, SpeedInfoDto[] speeds) {
+        List<IntegratedRaceDataDto> merged = new ArrayList<>();
         if (speeds.length == 0) return merged;
 
         int speedIndex = 0;
@@ -343,10 +349,12 @@ public class RaceService {
             }
             SpeedInfoDto closestSpeed = speeds[speedIndex];
             
-            merged.add(RaceDataDto.builder()
-                    .date(locTime)
+            merged.add(IntegratedRaceDataDto.builder()
+                    .timestamp(locTime)
                     .driverNumber(loc.getDriverNumber())
-                    .x(loc.getX()).y(loc.getY()).speed(closestSpeed.getSpeed())
+                    .x(loc.getX())
+                    .y(loc.getY())
+                    .speed(closestSpeed.getSpeed())
                     .build());
         }
         return merged;
@@ -379,65 +387,4 @@ public class RaceService {
         return raceSession24Repository.findAll();
     }
 
-    public void playRaceSession(int sessionKey, String startTimeStr) {
-        if (currentPlayTask != null && !currentPlayTask.isDone()) {
-            currentPlayTask.cancel(true);
-        }
-
-        currentPlayTask = taskExecutor.submit(() -> {
-            try {
-                log.info("📂 DB에서 세션 {} 데이터 로딩 중...", sessionKey);
-                RaceSession25 session = raceSession25Repository.findById(sessionKey).orElse(null);
-                if (session == null) {
-                    log.error("세션 정보 없음: {}", sessionKey);
-                    return;
-                }
-
-                List<RaceData25> raceData = raceData25Repository.findBySessionKeyOrderByTimestampAsc(sessionKey);
-                
-                if (raceData.isEmpty()) {
-                    log.warn("⚠️ 데이터가 없습니다.");
-                    return;
-                }
-
-                // [수정 3] DB에서 꺼낼 때 String -> LocalDateTime 변환 필요
-                LocalDateTime targetTime;
-                if (startTimeStr != null && !startTimeStr.isEmpty()) {
-                    String fixedTimeStr = startTimeStr.replace(" ", "+");
-                    targetTime = OffsetDateTime.parse(fixedTimeStr).toLocalDateTime();
-                } else {
-                    // 세션의 dateStart가 String이므로 parseTime 사용!
-                    targetTime = parseTime(session.getDateStart());
-                }
-
-                List<RaceData25> playList = raceData.stream()
-                        .filter(d -> !d.getTimestamp().isBefore(targetTime))
-                        .toList();
-
-                log.info("⏩ {} 부터 재생 시작! (남은 프레임: {})", targetTime, playList.size());
-
-                for (RaceData25 entity : playList) {
-                    if (Thread.currentThread().isInterrupted()) break; 
-
-                    RaceDataDto data = RaceDataDto.builder()
-                            .date(entity.getTimestamp())
-                            .driverNumber(entity.getDriverNumber())
-                            .x(entity.getX()).y(entity.getY()).speed(entity.getSpeed())
-                            .build();
-
-                    if (data.getSpeed() == 0) Thread.sleep(5); 
-                    else Thread.sleep(100); 
-
-                    messagingTemplate.convertAndSend("/topic/race", data);
-                }
-                log.info("🛑 레이스 종료");
-
-            } catch (InterruptedException e) {
-                log.info("⛔ 재생 중단");
-                Thread.currentThread().interrupt();
-            } catch (Exception e) {
-                log.error("재생 중 에러", e);
-            }
-        });
-    }
 }
