@@ -24,14 +24,16 @@ public class DriverController {
 
 	private final DriverService driverService;
 
-	@Operation(summary = "모든 드라이버 조회", description = "순위 순으로 정렬된 모든 드라이버 정보를 조회합니다. (Redis 캐싱 적용)")
+	@Operation(summary = "모든 드라이버 조회", description = "순위 순으로 정렬된 모든 드라이버 정보를 조회합니다. requestParam = 연도")
 	@GetMapping
-	public ResponseEntity<GlobalResponse<DriverListResponseDTO>> getAllDrivers() {
-		DriverListResponseDTO response = driverService.getAllDrivers();
+	public ResponseEntity<GlobalResponse<DriverListResponseDTO>> getAllDrivers(
+		@RequestParam int year
+	) {
+		DriverListResponseDTO response = driverService.getAllDrivers(year);
 		return ResponseEntity.ok(GlobalResponse.success(response));
 	}
 
-	@Operation(summary = "드라이버 ID로 조회", description = "드라이버 ID로 특정 드라이버 정보를 조회합니다. (Redis 캐싱 적용)")
+	@Operation(summary = "드라이버 ID로 조회", description = "2025년도 정보 - 드라이버 ID로 특정 드라이버 정보를 조회. (쓸 일 없을듯)")
 	@GetMapping("/{id}")
 	public ResponseEntity<GlobalResponse<DriverResponseDTO>> getDriverById(@PathVariable Long id) {
 		Optional<DriverResponseDTO> driver = driverService.getDriverById(id);
@@ -43,7 +45,7 @@ public class DriverController {
 		return ResponseEntity.ok(GlobalResponse.success(driver.get()));
 	}
 
-	@Operation(summary = "F1 API 드라이버 ID로 조회", description = "F1 API에서 제공하는 드라이버 ID로 조회합니다.")
+	@Operation(summary = "F1 API 드라이버 ID로 조회", description = "F1 API에서 제공하는 드라이버 ID로 조회. (2025정보, 쓸일 X)")
 	@GetMapping("/driver-id/{driverId}")
 	public ResponseEntity<GlobalResponse<DriverResponseDTO>> getDriverByDriverId(
 		@PathVariable String driverId) {
@@ -59,8 +61,10 @@ public class DriverController {
 	@Operation(summary = "팀별 드라이버 조회", description = "특정 팀의 드라이버들을 조회합니다.")
 	@GetMapping("/team/{team}")
 	public ResponseEntity<GlobalResponse<DriverListResponseDTO>> getDriversByTeam(
-		@PathVariable String team) {
-		DriverListResponseDTO response = driverService.getDriversByTeam(team);
+		@PathVariable String team,
+		@RequestParam int year
+	) {
+		DriverListResponseDTO response = driverService.getDriversByTeam(team, year);
 		return ResponseEntity.ok(GlobalResponse.success(response));
 	}
 
@@ -68,10 +72,18 @@ public class DriverController {
 	 * 외부 API 호출해서 드라이버 정보 얻어오기
 	 * @return
 	 */
+	@Operation(summary = "호출하지 마삼")
 	@PostMapping("/sync")
-    public GlobalResponse<String> syncDrivers() {
-        driverService.fetchAndSaveAllDriversInfo();
-        return GlobalResponse.success("F1 데이터 동기화 완료");
+    public GlobalResponse<String> syncDrivers(
+		@RequestParam int year
+	) {
+		if (year == 2024) {
+			driverService.fetchAndSaveAllDriversInfo2024();
+		} else if (year == 2025) {
+			driverService.fetchAndSaveAllDriversInfo2025();
+		}
+
+        return GlobalResponse.success("F1 드라이버 데이터 동기화 완료");
     }
 
 }

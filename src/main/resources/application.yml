@@ -3,35 +3,36 @@ spring:
     name: f1-racing
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/f1racing
+    url: jdbc:postgresql://localhost:5432/f1racing?reWriteBatchedStatements=true
     username: f1user
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 16  # CPU 코어 * 2 (일단 로컬 8코어 기준으로 16설정)
+      minimum-idle: 4        # 최소 유지 연결 수 (25%로 유지)
+      connection-timeout: 20000 # 대기 시간 (20초 유지)
 
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-        use_sql_comments: true
-
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      password: ${REDIS_PASSWORD}
-      timeout: 2000ms
-      lettuce:
-        pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
+        format_sql: false
+        use_sql_comments: false
+        jdbc:
+          batch_size: 50
+          order_inserts: true
+          order_updates: true
 
 server:
   port: 8080
+  tomcat:
+    threads: # 스레드 = 일꾼의 수
+      max: 200      # 기본 200 
+      min-spare: 25 # 놀고 있는 일꾼도 100명 유지
+    accept-count: 1000 # 대기열 사이즈도 넉넉하게
 
 logging:
   level:
