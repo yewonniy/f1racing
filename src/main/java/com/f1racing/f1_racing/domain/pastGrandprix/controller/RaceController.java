@@ -2,6 +2,7 @@ package com.f1racing.f1_racing.domain.pastGrandprix.controller;
 import lombok.RequiredArgsConstructor;
 
 import java.security.Principal;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -84,6 +85,15 @@ public class RaceController {
             dataChunk
         );
 	}
+
+    @Operation(summary = "그랑프리 '진짜' 시작 시간 보내주기", description = "grandprix underway한 진짜 시간")
+	@GetMapping("/race/startTime") 
+	public LocalDateTime calRealStartTime(
+        @RequestParam int year,
+        @RequestParam int sessionKey
+    ){
+        return raceService.calculateRealStartTime(year, sessionKey);
+    }
     /**
      * 프론트한테 설명할때:
      * "우리는 라이브가 아니라 다시보기라서 유저마다 보는 시간이 다 달라. 그래서 철수가 요청한 데이터를 영희가 받으면 안 돼.
