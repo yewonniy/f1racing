@@ -130,7 +130,7 @@ public class RaceService {
 
             if (laps == null) return;
 
-            LocalDateTime realStartTime = calculateRealStartTime(sessionKey, officialStartTime);
+            LocalDateTime realStartTime = calculateRealStartTime(2024, sessionKey);
             Map<Integer, LapData24> fastestLapMap = new HashMap<>();
 
             for (Map<String, Object> lap : laps) {
@@ -208,12 +208,26 @@ public class RaceService {
         }
     }
 
+    private String find_officialStartTime(int year, int sessionKey) {
+
+        if (year==2024) {
+            RaceSession24 session = raceSession24Repository.findBySessionKey(sessionKey);
+            return session.getDateStart();
+        } else if (year==2025) {
+            RaceSession25 session = raceSession25Repository.findBySessionKey(sessionKey);
+            return session.getDateStart();
+        }
+        return null;
+    }
+
     // sesisonKey를 넣으면, 해당 그랑프리가 시작한 "진짜 시간"을 반환함
     // 3. [핵심 로직] 
     // Lap 1은 정지 출발이므로 Lap 2보다 보통 12~13초 정도 더 걸린다 치면
     // Lap 2 시작 시점에서 (Lap 2 시간 + 12.5초)를 뺀다
     // => 포메이션 랩을 제외한 'Lights Out' 시점이 나옴.
-    private LocalDateTime calculateRealStartTime(int sessionKey, String officialStartTime) {
+    public LocalDateTime calculateRealStartTime(int year, int sessionKey ) {
+        String officialStartTime = find_officialStartTime(year, sessionKey);
+
         RestTemplate rt = createRestTemplate(); // 기존에 만들어둔 메서드 활용
         String url = String.format("https://api.openf1.org/v1/laps?session_key=%d&lap_number=2&driver_number=1", sessionKey);
     
@@ -387,4 +401,41 @@ public class RaceService {
         return raceSession24Repository.findAll();
     }
 
+    public List<IntegratedRaceDataDto> getDriverData(int sessionKey, int driverNumber, LocalDateTime start, LocalDateTime end, int year) {
+        
+        List<IntegratedRaceDataDto> result = new ArrayList<>();
+
+        if (year == 2024) {
+            // 2024년 테이블 조회
+            List<RaceData24> entities = raceData24Repository.findDriverDataInRange(sessionKey, driverNumber, start, end);
+            
+            // Entity24 -> DTO 변환
+            return entities.stream()
+                    .map(e -> IntegratedRaceDataDto.builder()
+                            .driverNumber(e.getDriverNumber())
+                            .x(e.getX())
+                            .y(e.getY())
+                            .speed(e.getSpeed())
+                            .timestamp(e.getTimestamp())
+                            .build())
+                    .collect(Collectors.toList());
+
+        } else if (year == 2025) {
+            // 2025년 테이블 조회
+            List<RaceData25> entities = raceData25Repository.findDriverDataInRange(sessionKey, driverNumber, start, end);
+            
+            // Entity25 -> DTO 변환
+            return entities.stream()
+                    .map(e -> IntegratedRaceDataDto.builder()
+                            .driverNumber(e.getDriverNumber())
+                            .x(e.getX())
+                            .y(e.getY())
+                            .speed(e.getSpeed())
+                            .timestamp(e.getTimestamp())
+                            .build())
+                    .collect(Collectors.toList());
+        }
+
+        return result; // 해당 연도가 없으면 빈 리스트 반환
+    }
 }

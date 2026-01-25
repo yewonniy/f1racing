@@ -2,7 +2,11 @@ package com.f1racing.f1_racing.domain.pastGrandprix.controller;
 import lombok.RequiredArgsConstructor;
 
 import java.security.Principal;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -84,6 +88,48 @@ public class RaceController {
             dataChunk
         );
 	}
+
+    @Operation(summary = "그랑프리 '진짜' 시작 시간 보내주기", description = "grandprix underway한 진짜 시간")
+	@GetMapping("/race/startTime") 
+	public LocalDateTime calRealStartTime(
+        @RequestParam int year,
+        @RequestParam int sessionKey
+    ){
+        return raceService.calculateRealStartTime(year, sessionKey);
+    }
+
+    @Operation(summary = "그랑프리 서킷 그리기 용 데이터", description = "이 데이터 시간순으로 이용해서 서킷 그리면 됨")
+    @GetMapping("/api/race/track-map")
+    public ResponseEntity<Map<Integer, List<IntegratedRaceDataDto>>> getTrackMapData(
+        @RequestParam int sessionKey,
+        @RequestParam int year
+    ) {
+        // 1. 드라이버 번호 1번 16번 4번 고정된 기준 드라이버 선정
+        List<Integer> targetDrivers = List.of(1, 16, 4);
+    
+        // 2. 해당 세션의 시작 시간 조회
+        LocalDateTime sessionStartTime = raceService.calculateRealStartTime(year, sessionKey);
+        
+        // 3. 시작 후 10분 뒤 ~ 15분 뒤 (5분간) 데이터 조회
+        // (이 시간대면 대형 사고가 없는 한 보통 서킷 한 바퀴는 돕니다)
+        LocalDateTime start = sessionStartTime.plusMinutes(10);
+        LocalDateTime end = start.plusMinutes(5);
+        
+        Map<Integer, List<IntegratedRaceDataDto>> result = new HashMap<>();
+
+        // 4. 데이터 조회
+        for (Integer driverNum : targetDrivers) {
+            List<IntegratedRaceDataDto> trackData = raceService.getDriverData(
+                sessionKey, driverNum, start, end, year 
+            );
+    
+            if (!trackData.isEmpty()) {
+                result.put(driverNum, trackData);
+            }
+        }
+        
+        return ResponseEntity.ok(result);
+    }
     /**
      * 프론트한테 설명할때:
      * "우리는 라이브가 아니라 다시보기라서 유저마다 보는 시간이 다 달라. 그래서 철수가 요청한 데이터를 영희가 받으면 안 돼.
