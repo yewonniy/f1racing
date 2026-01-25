@@ -401,4 +401,41 @@ public class RaceService {
         return raceSession24Repository.findAll();
     }
 
+    public List<IntegratedRaceDataDto> getDriverData(int sessionKey, int driverNumber, LocalDateTime start, LocalDateTime end, int year) {
+        
+        List<IntegratedRaceDataDto> result = new ArrayList<>();
+
+        if (year == 2024) {
+            // 2024년 테이블 조회
+            List<RaceData24> entities = raceData24Repository.findDriverDataInRange(sessionKey, driverNumber, start, end);
+            
+            // Entity24 -> DTO 변환
+            return entities.stream()
+                    .map(e -> IntegratedRaceDataDto.builder()
+                            .driverNumber(e.getDriverNumber())
+                            .x(e.getX())
+                            .y(e.getY())
+                            .speed(e.getSpeed())
+                            .timestamp(e.getTimestamp())
+                            .build())
+                    .collect(Collectors.toList());
+
+        } else if (year == 2025) {
+            // 2025년 테이블 조회
+            List<RaceData25> entities = raceData25Repository.findDriverDataInRange(sessionKey, driverNumber, start, end);
+            
+            // Entity25 -> DTO 변환
+            return entities.stream()
+                    .map(e -> IntegratedRaceDataDto.builder()
+                            .driverNumber(e.getDriverNumber())
+                            .x(e.getX())
+                            .y(e.getY())
+                            .speed(e.getSpeed())
+                            .timestamp(e.getTimestamp())
+                            .build())
+                    .collect(Collectors.toList());
+        }
+
+        return result; // 해당 연도가 없으면 빈 리스트 반환
+    }
 }
