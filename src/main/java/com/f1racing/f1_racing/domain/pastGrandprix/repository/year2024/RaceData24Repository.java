@@ -38,4 +38,12 @@ public interface RaceData24Repository extends JpaRepository<RaceData24, Long> {
             "FROM RaceData24 r WHERE r.sessionKey = :sessionKey")
     Slice<IntegratedRaceDataDto> findAllBySessionKeySliced(@Param("sessionKey") Integer sessionKey, Pageable pageable);
 
+    // 특정 드라이버의 특정 시간대 위치 데이터를 DB에서 가져오는 메서드
+    @Query("SELECT r FROM RaceData24 r WHERE r.sessionKey = :sessionKey AND r.driverNumber = :driverNumber AND r.timestamp BETWEEN :start AND :end ORDER BY r.timestamp ASC")
+    List<RaceData24> findDriverDataInRange(
+            @Param("sessionKey") Integer sessionKey,
+            @Param("driverNumber") Integer driverNumber,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
 }

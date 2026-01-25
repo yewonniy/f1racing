@@ -35,4 +35,12 @@ public interface RaceData25Repository extends JpaRepository<RaceData25, Long>{
             "r.driverNumber, r.x, r.y, r.speed, r.timestamp) " +
             "FROM RaceData25 r WHERE r.sessionKey = :sessionKey")
     Slice<IntegratedRaceDataDto> findAllBySessionKeySliced(@Param("sessionKey") Integer sessionKey, Pageable pageable);
+
+    @Query("SELECT r FROM RaceData25 r WHERE r.sessionKey = :sessionKey AND r.driverNumber = :driverNumber AND r.timestamp BETWEEN :start AND :end ORDER BY r.timestamp ASC")
+    List<RaceData25> findDriverDataInRange(
+            @Param("sessionKey") Integer sessionKey,
+            @Param("driverNumber") Integer driverNumber,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
 }
