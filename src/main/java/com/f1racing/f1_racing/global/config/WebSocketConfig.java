@@ -5,6 +5,7 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
 // 이 config 파일 : "스프링아, 우리 집(서버)에 실시간 통신을 위한 '전용 우체국'을 하나 차려줘"라고 명령하는 파일
 @Configuration
@@ -18,6 +19,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         config.enableSimpleBroker("/topic");  // 유저가 /topic/race라는 채널을 '구독'하고 있으면 서버가 그리로 데이터를 쐈을 때 다 같이 받는다. (브로드캐스트 통신)
         // 2. 클라이언트 -> 서버 (send 요청)
         config.setApplicationDestinationPrefixes("/app");  // 클라이언트가 /app/race라는 주소로 데이터를 보내면 서버가 그걸 받아서 처리한다.
+    }
+
+    // 웹소켓 전송 용량 제한 늘리기
+    @Override
+    public void configureWebSocketTransport(WebSocketTransportRegistration registry) {
+        // 기본값: 512KB (512 * 1024 = 524288)
+        // 수정값: 10MB (10 * 1024 * 1024 = 10485760)
+        
+        registry.setMessageSizeLimit(10 * 1024 * 1024);      // 메시지 하나의 최대 크기
+        registry.setSendBufferSizeLimit(10 * 1024 * 1024);   // 보내는 버퍼 사이즈 제한
+        registry.setSendTimeLimit(20 * 1000);                // 보내는 데 걸리는 시간 제한 (20초)
     }
 
     // 웹소켓에 들어오는 문 (endpoint)
