@@ -23,6 +23,7 @@ import com.f1racing.f1_racing.domain.driver.repository.DriverRepository24;
 import com.f1racing.f1_racing.domain.driver.repository.DriverRepository25;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.F1LocationDto;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.IntegratedRaceDataDto;
+import com.f1racing.f1_racing.domain.pastGrandprix.dto.LapAndFastestDriver;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.SessionDto;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.SpeedInfoDto;
 import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2025.LapData25;
@@ -48,7 +49,7 @@ public class RaceService {
     private final RaceData24Repository raceData24Repository;
     private final RaceData25Repository raceData25Repository;
     private final RaceSession25Repository raceSession25Repository;
-    // private final LapData25Repository lapData25Repository;
+    private final LapData25Repository lapData25Repository;
     // private final DriverRepository25 driverRepository25;
     private final LapData24Repository lapData24Repository;
     private final DriverRepository24 driverRepository24;
@@ -243,11 +244,11 @@ public class RaceService {
                     double lap2Duration = ((Number) durationObj).doubleValue();
                     OffsetDateTime lap2StartTime = OffsetDateTime.parse(lap2StartStr);
     
-                    // 공식: Lap 2 시작 시간 - (Lap 2 주행 시간 + 보정치 12.5초)
-                    double standingStartOffset = 12.5;
+                    // 공식: Lap 2 시작 시간 - (Lap 2 주행 시간 + 보정치 5초)
+                    double standingStartOffset = 5.0;
                     
                     return lap2StartTime
-                            .minusNanos((long)((lap2Duration + standingStartOffset) * 1_000_000_000L))
+                            .minusNanos((long)((lap2Duration*2 + standingStartOffset) * 1_000_000_000L))
                             .toLocalDateTime();
                 }
             }
@@ -437,5 +438,32 @@ public class RaceService {
         }
 
         return result; // 해당 연도가 없으면 빈 리스트 반환
+    }
+
+    @Transactional(readOnly = true)
+    public List<LapAndFastestDriver> lapInfoAndFastestDriver(int year, int sessionKey) {
+        if (year == 2024) {
+            return lapData24Repository.findBySessionKeyOrderByLapNumberAsc(sessionKey)
+                    .stream()
+                    .map(lap -> LapAndFastestDriver.builder()
+                            .driverName(lap.getDriverName())
+                            .lapNumber(lap.getLapNumber())
+                            .dateStart(lap.getDateStart())
+                            .lapDuration(lap.getLapDuration())
+                            .build())
+                    .collect(Collectors.toList());
+        } else if (year == 2025) {
+            return lapData25Repository.findBySessionKeyOrderByLapNumberAsc(sessionKey)
+                    .stream()
+                    .map(lap -> LapAndFastestDriver.builder()
+                            .driverName(lap.getDriverName())
+                            .lapNumber(lap.getLapNumber())
+                            .dateStart(lap.getDateStart())
+                            .lapDuration(lap.getLapDuration())
+                            .build())
+                    .collect(Collectors.toList());
+        }
+        
+        return Collections.emptyList();
     }
 }
