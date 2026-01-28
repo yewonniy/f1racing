@@ -12,12 +12,14 @@ import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "lap_data_25", 
        indexes = @Index(name = "idx_lap_session", columnList = "sessionKey"))
 @Data
+@Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

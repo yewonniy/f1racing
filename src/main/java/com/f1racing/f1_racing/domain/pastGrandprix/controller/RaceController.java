@@ -13,6 +13,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.IntegratedRaceDataDto;
+import com.f1racing.f1_racing.domain.pastGrandprix.dto.LapAndFastestDriver;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.RaceDataRequestDto;
 import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2024.RaceSession24;
 import com.f1racing.f1_racing.domain.pastGrandprix.service.PlayerService;
@@ -88,6 +89,15 @@ public class RaceController {
             dataChunk
         );
 	}
+
+    @Operation(summary = "그랑프리 랩 정보 및 fastest 드라이버 정보 보내주기")
+    @GetMapping("/race/lapInfo")
+    public ResponseEntity<List<LapAndFastestDriver>> lapInfoAndFastestDriver(
+        @RequestParam int year,
+        @RequestParam int sessionKey
+    ) {
+        return ResponseEntity.ok(raceService.lapInfoAndFastestDriver(year, sessionKey));
+    }
 
     @Operation(summary = "그랑프리 '진짜' 시작 시간 보내주기", description = "grandprix underway한 진짜 시간")
 	@GetMapping("/race/startTime") 
