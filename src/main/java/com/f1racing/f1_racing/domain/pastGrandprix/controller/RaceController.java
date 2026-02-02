@@ -99,7 +99,7 @@ public class RaceController {
         return ResponseEntity.ok(raceService.lapInfoAndFastestDriver(year, sessionKey));
     }
 
-    @Operation(summary = "그랑프리 '진짜' 시작 시간 보내주기", description = "grandprix underway한 진짜 시간")
+    @Operation(summary = "그랑프리 진짜 시작 시간 보내주기", description = "grandprix underway한 진짜 시간")
 	@GetMapping("/race/startTime") 
 	public LocalDateTime calRealStartTime(
         @RequestParam int year,
@@ -118,12 +118,12 @@ public class RaceController {
         List<Integer> targetDrivers = List.of(1, 16, 4);
     
         // 2. 해당 세션의 시작 시간 조회
-        LocalDateTime sessionStartTime = raceService.calculateRealStartTime(year, sessionKey);
+        LocalDateTime sessionStartTime = raceService.findLap8Start(year, sessionKey);
         
-        // 3. 시작 후 10분 뒤 ~ 15분 뒤 (5분간) 데이터 조회
+        // 3. 두번째 랩 시작 후 1분 뒤 ~ 7분 뒤 (6분간) 데이터 조회
         // (이 시간대면 대형 사고가 없는 한 보통 서킷 한 바퀴는 돕니다)
-        LocalDateTime start = sessionStartTime.plusMinutes(10);
-        LocalDateTime end = start.plusMinutes(5);
+        LocalDateTime start = sessionStartTime.plusMinutes(1);
+        LocalDateTime end = start.plusMinutes(6);
         
         Map<Integer, List<IntegratedRaceDataDto>> result = new HashMap<>();
 
