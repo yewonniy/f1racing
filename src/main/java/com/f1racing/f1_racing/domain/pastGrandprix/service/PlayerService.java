@@ -41,7 +41,12 @@ public class PlayerService {
         );
         // 1. 끝나는 시간 계산 (요청 시간 + 60초)
         LocalDateTime endTs = startTs.plusSeconds(CHUNK_SIZE_SECONDS);
-
+        // 🔥 [디버깅용 로그 추가] 프론트가 요청한 시간이 서버에선 언제로 인식되는지 확인
+        /* System.out.println("=========================================");
+        System.out.println("🔍 [요청] SessionKey: " + sessionKey);
+        System.out.println("🔍 [요청] Timestamp(Long): " + startTimeLong);
+        System.out.println("🔍 [변환] UTC 시간: " + startTs + " ~ " + endTs);
+        System.out.println("========================================="); */
         // 2. 연도별 분기 처리 & Pure DB 조회
         if (year == 2024) {
             return raceData24Repository.findDataByTimeRange(sessionKey, startTs, endTs);

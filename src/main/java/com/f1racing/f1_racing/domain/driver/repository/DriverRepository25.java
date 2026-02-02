@@ -18,5 +18,7 @@ public interface DriverRepository25 extends JpaRepository<Driver25, Long> {
 	List<Driver25> findAllOrderByPosition();
 
 	List<Driver25> findByTeam(String team);
+
+	Optional<Driver25> findByLastName(String lastName);
 }
 
