@@ -17,4 +17,5 @@ public interface DriverRepository24 extends JpaRepository<Driver24, Long> {
 
 	List<Driver24> findByTeam(String team);
     
+    Optional<Driver24> findByLastName(String lastName);
 } 

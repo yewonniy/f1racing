@@ -23,6 +23,7 @@ import com.f1racing.f1_racing.domain.driver.repository.DriverRepository24;
 import com.f1racing.f1_racing.domain.driver.repository.DriverRepository25;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.F1LocationDto;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.IntegratedRaceDataDto;
+import com.f1racing.f1_racing.domain.pastGrandprix.dto.LapAndFastestDriver;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.SessionDto;
 import com.f1racing.f1_racing.domain.pastGrandprix.dto.SpeedInfoDto;
 import com.f1racing.f1_racing.domain.pastGrandprix.entity.year2025.LapData25;
@@ -48,8 +49,8 @@ public class RaceService {
     private final RaceData24Repository raceData24Repository;
     private final RaceData25Repository raceData25Repository;
     private final RaceSession25Repository raceSession25Repository;
-    // private final LapData25Repository lapData25Repository;
-    // private final DriverRepository25 driverRepository25;
+    private final LapData25Repository lapData25Repository;
+    private final DriverRepository25 driverRepository25;
     private final LapData24Repository lapData24Repository;
     private final DriverRepository24 driverRepository24;
     
@@ -208,54 +209,68 @@ public class RaceService {
         }
     }
 
-    private String find_officialStartTime(int year, int sessionKey) {
+    public LocalDateTime find_officialStartTime(int year, int sessionKey) {
 
         if (year==2024) {
             RaceSession24 session = raceSession24Repository.findBySessionKey(sessionKey);
-            return session.getDateStart();
+            return parseTime(session.getDateStart());
         } else if (year==2025) {
             RaceSession25 session = raceSession25Repository.findBySessionKey(sessionKey);
-            return session.getDateStart();
+            return parseTime(session.getDateStart());
         }
         return null;
     }
 
-    // sesisonKey를 넣으면, 해당 그랑프리가 시작한 "진짜 시간"을 반환함
-    // 3. [핵심 로직] 
-    // Lap 1은 정지 출발이므로 Lap 2보다 보통 12~13초 정도 더 걸린다 치면
-    // Lap 2 시작 시점에서 (Lap 2 시간 + 12.5초)를 뺀다
-    // => 포메이션 랩을 제외한 'Lights Out' 시점이 나옴.
-    public LocalDateTime calculateRealStartTime(int year, int sessionKey ) {
-        String officialStartTime = find_officialStartTime(year, sessionKey);
+    public LocalDateTime calculateRealStartTime(int year, int sessionKey) {
 
-        RestTemplate rt = createRestTemplate(); // 기존에 만들어둔 메서드 활용
-        String url = String.format("https://api.openf1.org/v1/laps?session_key=%d&lap_number=2&driver_number=1", sessionKey);
-    
-        try {
-            Map<String, Object>[] laps = rt.getForObject(url, Map[].class);
-    
-            if (laps != null && laps.length > 0) {
-                Map<String, Object> lap2 = laps[0];
-                String lap2StartStr = (String) lap2.get("date_start");
-                Object durationObj = lap2.get("lap_duration");
-    
-                if (lap2StartStr != null && durationObj != null) {
-                    double lap2Duration = ((Number) durationObj).doubleValue();
-                    OffsetDateTime lap2StartTime = OffsetDateTime.parse(lap2StartStr);
-    
-                    // 공식: Lap 2 시작 시간 - (Lap 2 주행 시간 + 보정치 12.5초)
-                    double standingStartOffset = 12.5;
-                    
-                    return lap2StartTime
-                            .minusNanos((long)((lap2Duration + standingStartOffset) * 1_000_000_000L))
-                            .toLocalDateTime();
-                }
-            }
-        } catch (Exception e) {
-            log.warn("⚠️ [Session {}] 찐 시작 시간 계산 중 오류 (공식 시간 사용 권장): {}", sessionKey, e.getMessage());
+        // Lap 1 시작 시간 기준으로 20초만 뺌 
+        LocalDateTime lap1Start = findLap1Start(year, sessionKey);
+        if (lap1Start != null) {
+            return lap1Start.minusSeconds(80);
         }
-        
-        return parseTime(officialStartTime); // 계산 실패 시 null 반환
+
+        // 그것도 없으면 공식 시간 반환
+        return (find_officialStartTime(year, sessionKey));
+    }
+
+  
+    // (Fallback용) Lap 1 시작 시간 조회
+    private LocalDateTime findLap1Start(int year, int sessionKey) {
+        if (year == 2024) {
+            return lapData24Repository.findFirstBySessionKeyAndLapNumberOrderByDateStartAsc(sessionKey, 1)
+                    .map(LapData24::getDateStart).orElse(null);
+        } else if (year == 2025) {
+            return lapData25Repository.findFirstBySessionKeyAndLapNumberOrderByDateStartAsc(sessionKey, 1)
+                    .map(LapData25::getDateStart).orElse(null);
+        }
+        return null;
+    }
+
+    public LocalDateTime findLap8Start(int year, int sessionKey) {
+        if (year == 2024) {
+            return lapData24Repository.findFirstBySessionKeyAndLapNumberOrderByDateStartAsc(sessionKey, 8)
+                    .map(LapData24::getDateStart).orElse(null);
+        } else if (year == 2025) {
+            return lapData25Repository.findFirstBySessionKeyAndLapNumberOrderByDateStartAsc(sessionKey, 8)
+                    .map(LapData25::getDateStart).orElse(null);
+        }
+        return null;
+    }
+
+    public Integer find8LapFastestDriver(int year, int sessionKey) {
+        String driverName = null;
+        if (year == 2024) {
+            driverName =lapData24Repository.findFirstBySessionKeyAndLapNumberOrderByDateStartAsc(sessionKey, 8)
+                    .map(LapData24::getDriverName).orElse(null);
+            return driverRepository24.findByLastName(driverName).get().getDriverNumber();
+        } else if (year == 2025) {
+            driverName = lapData25Repository.findFirstBySessionKeyAndLapNumberOrderByDateStartAsc(sessionKey, 8)
+                    .map(LapData25::getDriverName).orElse(null);
+            return driverRepository25.findByLastName(driverName).get().getDriverNumber();
+        }
+
+
+        return 1;
     }
 
     private RestTemplate createRestTemplate() {
@@ -437,5 +452,32 @@ public class RaceService {
         }
 
         return result; // 해당 연도가 없으면 빈 리스트 반환
+    }
+
+    @Transactional(readOnly = true)
+    public List<LapAndFastestDriver> lapInfoAndFastestDriver(int year, int sessionKey) {
+        if (year == 2024) {
+            return lapData24Repository.findBySessionKeyOrderByLapNumberAsc(sessionKey)
+                    .stream()
+                    .map(lap -> LapAndFastestDriver.builder()
+                            .driverName(lap.getDriverName())
+                            .lapNumber(lap.getLapNumber())
+                            .dateStart(lap.getDateStart())
+                            .lapDuration(lap.getLapDuration())
+                            .build())
+                    .collect(Collectors.toList());
+        } else if (year == 2025) {
+            return lapData25Repository.findBySessionKeyOrderByLapNumberAsc(sessionKey)
+                    .stream()
+                    .map(lap -> LapAndFastestDriver.builder()
+                            .driverName(lap.getDriverName())
+                            .lapNumber(lap.getLapNumber())
+                            .dateStart(lap.getDateStart())
+                            .lapDuration(lap.getLapDuration())
+                            .build())
+                    .collect(Collectors.toList());
+        }
+        
+        return Collections.emptyList();
     }
 }
